@@ -1,15 +1,18 @@
 const { sequelize, Sequelize } = require('../models/index');
 const User = require('../models/user')(sequelize, Sequelize);
+const bcrypt = require('bcrypt');
 
 exports.CreateUser = async (req, res) => {
     try{
         const userDetails = req.body;
+        userDetails.password = bcrypt.hashSync(userDetails.password, 10);
 
         const user = await User.create({
-            name: userDetails.name,
-            email: userDetails.email,
-            password: userDetails.password
+            name: `${userDetails.name}`,
+            email: `${userDetails.email}`,
+            password: `${userDetails.password}`
         });
+        delete user.password;
 
         res.status(201).send(user);
     }catch (err) {
@@ -20,10 +23,15 @@ exports.CreateUser = async (req, res) => {
 exports.GetUser = async(req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({ where: {email, password} });
 
-        if (!user) {
-            res.status(404).send('User not found');
+        const user = await User.findOne({ where: {email} });
+        if(!user) {
+            return res.status(404).send('User not found');
+        }
+
+        const isMatched = await bcrypt.compare(password, user.password);
+        if(!isMatched) {
+            return res.status(404).send('User not found');
         }
 
         res.status(200).send(user);
@@ -50,8 +58,14 @@ exports.UpdateUser = async (req, res) => {
             return res.status(404).send('User not found');
         }
 
+        if(reqBody.password){
+            req.body.password = await bcrypt.hash(user.password, 8);
+        }
+
         user.set(req.body);
         await user.save();
+
+        delete user.password;
 
         res.send(user);
     }catch (e) {
