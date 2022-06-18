@@ -7,12 +7,7 @@ exports.CreateUser = async (req, res) => {
         const userDetails = req.body;
         userDetails.password = bcrypt.hashSync(userDetails.password, 10);
 
-        const user = await User.create({
-            name: `${userDetails.name}`,
-            email: `${userDetails.email}`,
-            password: `${userDetails.password}`
-        });
-        delete user.password;
+        const user = await User.create(userDetails);
 
         res.status(201).send(user);
     }catch (err) {
@@ -41,7 +36,7 @@ exports.GetUser = async(req, res) => {
 }
 
 exports.UpdateUser = async (req, res) => {
-    const userId = req.prams.id;
+    const userId = req.params.id;
     const reqBody = Object.keys(req.body);
 
     const allowedUpdates = ["name", "email", "password"];
@@ -58,14 +53,12 @@ exports.UpdateUser = async (req, res) => {
             return res.status(404).send('User not found');
         }
 
-        if(reqBody.password){
-            req.body.password = await bcrypt.hash(user.password, 8);
+        if(req.body.password){
+            req.body.password = bcrypt.hashSync(req.body.password, 10);
         }
 
         user.set(req.body);
         await user.save();
-
-        delete user.password;
 
         res.send(user);
     }catch (e) {
@@ -75,15 +68,15 @@ exports.UpdateUser = async (req, res) => {
 
 exports.DeleteUser = async(req, res) => {
     try{
-        const user = await User.findByPk(userId);
+        const user = await User.findByPk(req.params.id);
 
         if (!user) {
             return res.status(404).send('User not found');
         }
 
-        const deletedUser = await user.destroy()
+        await user.destroy()
     
-        res.status(200).send(deletedUser);
+        res.status(200).send({message: 'User deleted successfully'});
     }catch (err) {
         res.status(400).send(err);
     }
